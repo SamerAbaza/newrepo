@@ -1,26 +1,9 @@
-# syntax=docker/dockerfile:experimental
-FROM python:3.8-slim
-ARG CODE_SOURCE
-ARG PACKAGES=""
+FROM python:3.7
 
-RUN apt-get update && apt-get --yes upgrade
-RUN apt-get --yes install dumb-init bash ${PACKAGES}
+RUN pip install fastapi uvicorn pandas
 
-RUN mkdir /home/rajendra
-WORKDIR /home/rajendra
+EXPOSE 80
 
-COPY /${CODE_SOURCE}/requirements_docker.txt /home/rajendra
+COPY /get_matching_ids/src /app
 
-RUN --mount=type=ssh \
-  --mount=type=bind,source=shared_code,target=/shared_code \
-  mkdir -p -m 0600 ~/.ssh \
-  && apt-get --yes install openssh-client git gcc python3-dev \
-  && ssh-keyscan github.com >> ~/.ssh/known_hosts \
-  && pip install -r requirements_docker.txt \
-  && apt-get --yes remove git openssh-client gcc python3-dev
-
-COPY /${CODE_SOURCE}/src /home/rajendra/
-
-ENTRYPOINT ["/usr/bin/dumb-init", "--"]
-CMD ["bash", "-c", "sleep 20 && exec python -u main.py"]
-# HEALTHCHECK CMD curl -f 127.0.0.1:8080/health || exit 1
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80"]
