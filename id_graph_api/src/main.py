@@ -59,7 +59,7 @@ async def read_item(company_1: str, company_2: str):
     if company_1 == company_2:
         raise HTTPException(status_code=404, detail=f"Got 2 times the same company")
 
-    # use only rows where all information is given
+    # use only rows where all information is givenn
     df_preprocessed = df_id_graph[[company_1, company_2, "cell_id"]].dropna(thresh=3)
 
     # create mapping dict to replace actual cell id by random id
