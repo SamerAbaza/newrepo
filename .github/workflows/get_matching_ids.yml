@@ -48,7 +48,6 @@ jobs:
       - name: Generate Tags
         run: |
           echo "IMAGE_TAG=$(echo ${GITHUB_SHA:1:7})" >> $GITHUB_ENV
-          echo "BRANCH_REF=$(echo ${GITHUB_REF} | sed -e 's|refs/[^/]*/||' -e 's|_|-|g')" >> $GITHUB_ENV
       - name: Login to container Registry
         run: |
           az login --identity
@@ -57,4 +56,14 @@ jobs:
         env:
           ALTERNATIVE_TAG: latest
         run: |
-          bash ${GITHUB_WORKSPACE}/.github/scripts/docker_build_and_push.sh
+          export IMAGE_NAME="${REGISTRY}/${REPOSITORY}"
+
+          # Build and push
+          docker build $(./ci_helpers/get_docker_build_args.sh ${IMAGE_FOLDER}) -f ${DOCKERFILE:="./Dockerfile"} -t ${IMAGE_NAME}:${IMAGE_TAG} .
+          docker push ${IMAGE_NAME}:${IMAGE_TAG}
+
+          # Push with alternative tag if present
+          docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:${ALTERNATIVE_TAG}
+          docker push ${IMAGE_NAME}:${ALTERNATIVE_TAG}
+
+          docker logout ${REGISTRY}
