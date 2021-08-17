@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException
-from azure_interactions import AzureBlob
+from . import azure_interactions as ai
 
 import uuid
 
@@ -8,7 +8,7 @@ app = FastAPI()
 
 # We need to add somthing to reload the data when there is an update
 storage_container_url = "https://felix0test0storage0acc.blob.core.windows.net/id-graph"
-bc_id_graph = AzureBlob(url=storage_container_url)
+bc_id_graph = ai.AzureBlob(url=storage_container_url)
 df_id_graph = bc_id_graph.read_latest_blob_to_df(sep=";")
 
 # data = {
