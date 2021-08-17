@@ -1,9 +1,11 @@
-FROM python:3.7
+FROM python:3.8-slim
 
-RUN pip install fastapi uvicorn pandas
+COPY /get_matching_ids/requirements_docker.txt /home
+
+RUN pip install -r /home/requirements_docker.txt 
 
 EXPOSE 80
 
-COPY /get_matching_ids/src /app
+COPY /get_matching_ids/src /home
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80"]
+CMD ["uvicorn", "home.main:app", "--host", "0.0.0.0", "--port", "80"]
