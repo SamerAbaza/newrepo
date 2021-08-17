@@ -1,0 +1,60 @@
+name: Build create feature table Container
+on:
+  push:
+    branches:
+      - main
+      - dev
+      - "feature/*"
+
+env:
+  REGISTRY: ${{ secrets.CONTAINER_REGISTRY }}
+  IMAGE_FOLDER: id_graph_api
+  REPOSITORY: id-graph-api
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2.2.0
+
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+        working-directory: ${{ env.IMAGE_FOLDER }}
+
+      - name: Test with pytest
+        run: |
+          pytest --cov-report term-missing --cov=src -vv
+        working-directory: ${{ env.IMAGE_FOLDER }}
+
+  build:
+    name: Build and deploy
+    runs-on: ["self-hosted"]
+    needs: test
+    env:
+      DOCKER_BUILDKIT: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2.2.0
+
+      - name: Generate Tags
+        run: |
+          echo "IMAGE_TAG=$(echo ${GITHUB_SHA:1:7})" >> $GITHUB_ENV
+          echo "BRANCH_REF=$(echo ${GITHUB_REF} | sed -e 's|refs/[^/]*/||' -e 's|_|-|g')" >> $GITHUB_ENV
+      - name: Login to container Registry
+        run: |
+          az login --identity --output none
+          az acr login --name ${REGISTRY}
+      - name: Docker Build and Push "development"
+        env:
+          ALTERNATIVE_TAG: latest
+        run: |
+          bash ${GITHUB_WORKSPACE}/.github/scripts/docker_build_and_push.sh
