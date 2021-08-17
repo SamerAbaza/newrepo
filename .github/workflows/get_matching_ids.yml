@@ -51,7 +51,7 @@ jobs:
           echo "BRANCH_REF=$(echo ${GITHUB_REF} | sed -e 's|refs/[^/]*/||' -e 's|_|-|g')" >> $GITHUB_ENV
       - name: Login to container Registry
         run: |
-          az login --identity --output none
+          az login --identity
           az acr login --name ${REGISTRY}
       - name: Docker Build and Push "development"
         env:
