@@ -1,5 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from . import azure_interactions as ai
+import pandas as pd
+import numpy as np
 
 import uuid
 
@@ -7,18 +9,18 @@ app = FastAPI()
 
 
 # We need to add somthing to reload the data when there is an update
-storage_container_url = "https://felix0test0storage0acc.blob.core.windows.net/id-graph"
-bc_id_graph = ai.AzureBlob(url=storage_container_url)
-df_id_graph = bc_id_graph.read_latest_blob_to_df(sep=";")
+# storage_container_url = "https://felix0test0storage0acc.blob.core.windows.net/id-graph"
+# bc_id_graph = ai.AzureBlob(url=storage_container_url)
+# df_id_graph = bc_id_graph.read_latest_blob_to_df(sep=";")
 
-# data = {
-#    "com_1": ["d1_1", np.nan, "d1_4", "d1_3"],
-#    "com_2": ["d2_A", np.nan, np.nan, "d2_D"],
-#    "com_3": ["d3_6", np.nan, "d3_8", np.nan],
-#    "com_4": [np.nan, "d4_X", "d4_Y", np.nan],
-# }
+data = {
+    "com_1": ["d1_1", np.nan, "d1_4", "d1_3"],
+    "com_2": ["d2_A", np.nan, np.nan, "d2_D"],
+    "com_3": ["d3_6", np.nan, "d3_8", np.nan],
+    "com_4": [np.nan, "d4_X", "d4_Y", np.nan],
+}
 
-# df_id_graph = pd.DataFrame(data=data)
+df_id_graph = pd.DataFrame(data=data)
 
 
 @app.get("/share_person/")
