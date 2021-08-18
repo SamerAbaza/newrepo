@@ -80,6 +80,10 @@ jobs:
           az login --identity
           
       - name: Deploy App
+        env:
+          SUBSCRIPTION_ID: ${{ secrets.SUBSCRIPTION_ID }}
+          RESOURCE_GROUP: ${{ secrets.RESOURCE_GROUP }}
+          WEB_APP_NAME: ${{ secrets.WEB_APP_NAME }}
         run: |
           az webapp config container set \
             --docker-custom-image-name "${REGISTRY}/${REPOSITORY}:${GITHUB_SHA:0:8}" \
