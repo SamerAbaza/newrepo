@@ -36,7 +36,7 @@ jobs:
         working-directory: ${{ env.IMAGE_FOLDER }}
 
   build:
-    name: Build and deploy
+    name: Build
     runs-on: ["self-hosted"]
     needs: test
     env:
@@ -45,18 +45,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2.2.0
 
-      - name: Generate Tags
-        run: |
-          echo "IMAGE_TAG=$(echo ${GITHUB_SHA:1:7})" >> $GITHUB_ENV
       - name: Login to container Registry
         run: |
           az login --identity
           az acr login --name ${REGISTRY}
+          
       - name: Docker Build and Push "development"
         env:
           ALTERNATIVE_TAG: latest
         run: |
           export IMAGE_NAME="${REGISTRY}/${REPOSITORY}"
+          IMAGE_TAG="${GITHUB_SHA:0:8}"
 
           # Build and push
           docker build $(./ci_helpers/get_docker_build_args.sh ${IMAGE_FOLDER}) -f ${DOCKERFILE:="./Dockerfile"} -t ${IMAGE_NAME}:${IMAGE_TAG} .
@@ -67,3 +66,28 @@ jobs:
           docker push ${IMAGE_NAME}:${ALTERNATIVE_TAG}
 
           docker logout ${REGISTRY}
+
+  deploy-web-app:
+    environment: sandbox
+    runs-on: self-hosted
+    needs: [build]
+
+    steps:
+      # Checkout the repository
+      - uses: actions/checkout@v2
+      - name: Azure Login
+        run: |
+          az login --identity
+          
+      - name: Deploy App
+        run: |
+          az webapp config container set \
+            --docker-custom-image-name "${REGISTRY}/${REPOSITORY}:${GITHUB_SHA:0:8}" \
+            --name "$WEB_APP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --subscription "$SUBSCRIPTION_ID"
+
+          az resource update \
+            --ids "/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.Web/sites/${WEB_APP_NAME}/config/web" \
+            --set properties.acrUseManagedIdentityCreds=True
+
