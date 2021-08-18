@@ -2,29 +2,32 @@ from fastapi import FastAPI, HTTPException
 from . import azure_interactions as ai
 import pandas as pd
 import numpy as np
-
+import os
+import json
 import uuid
 
 app = FastAPI()
 
+accessible_resources = os.environ["ACCESSIBLE_RESOURCES"]
+accessible_resources_dict = json.loads(accessible_resources)
 
-# We need to add somthing to reload the data when there is an update
-# storage_container_url = "https://felix0test0storage0acc.blob.core.windows.net/id-graph"
-# bc_id_graph = ai.AzureBlob(url=storage_container_url)
-# df_id_graph = bc_id_graph.read_latest_blob_to_df(sep=";")
+# data = {
+#    "com_1": ["d1_1", np.nan, "d1_4", "d1_3"],
+#    "com_2": ["d2_A", np.nan, np.nan, "d2_D"],
+#    "com_3": ["d3_6", np.nan, "d3_8", np.nan],
+#    "com_4": [np.nan, "d4_X", "d4_Y", np.nan],
+# }
 
-data = {
-    "com_1": ["d1_1", np.nan, "d1_4", "d1_3"],
-    "com_2": ["d2_A", np.nan, np.nan, "d2_D"],
-    "com_3": ["d3_6", np.nan, "d3_8", np.nan],
-    "com_4": [np.nan, "d4_X", "d4_Y", np.nan],
-}
-
-df_id_graph = pd.DataFrame(data=data)
+# df_id_graph = pd.DataFrame(data=data)
 
 
 @app.get("/share_person/")
 async def read_item(company_1: str, company_2: str):
+    bc_id_graph = ai.AzureBlob(
+        url=accessible_resources_dict["storage_containers"]["meta-id-table"]
+    )
+    df_id_graph = bc_id_graph.read_latest_blob_to_df(sep=";")
+
     if company_1 not in df_id_graph.columns:
         raise HTTPException(
             status_code=404, detail=f"Could not finde company '{company_1}' in ID-Graph"
@@ -50,6 +53,11 @@ async def read_item(company_1: str, company_2: str):
 
 @app.get("/share_cell/")
 async def read_item(company_1: str, company_2: str):
+    bc_id_graph = ai.AzureBlob(
+        url=accessible_resources_dict["storage_containers"]["meta-id-table"]
+    )
+    df_id_graph = bc_id_graph.read_latest_blob_to_df(sep=";")
+
     if company_1 not in df_id_graph.columns:
         raise HTTPException(
             status_code=404, detail=f"Could not finde company '{company_1}' in ID-Graph"
