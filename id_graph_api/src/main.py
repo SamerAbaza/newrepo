@@ -1,22 +1,23 @@
 from fastapi import FastAPI, HTTPException
-from . import azure_interactions as ai
 
+# import azure_interactions as ai
+from test_data import df_id_graph
 import os
 import json
 import uuid
 
 app = FastAPI()
 
-accessible_resources = os.environ["ACCESSIBLE_RESOURCES"]
-accessible_resources_dict = json.loads(accessible_resources)
+# accessible_resources = os.environ["ACCESSIBLE_RESOURCES"]
+# accessible_resources_dict = json.loads(accessible_resources)
 
 
 @app.get("/share_person/")
 async def read_item(company_1: str, company_2: str):
-    bc_id_graph = ai.AzureBlob(
-        url=accessible_resources_dict["storage_containers"]["meta-id-table"]
-    )
-    df_id_graph = bc_id_graph.read_latest_blob_to_df(sep=";")
+    # bc_id_graph = ai.AzureBlob(
+    #    url=accessible_resources_dict["storage_containers"]["meta-id-table"]
+    # )
+    # df_id_graph = bc_id_graph.read_latest_blob_to_df(sep=";")
 
     if company_1 not in df_id_graph.columns:
         raise HTTPException(
@@ -43,10 +44,10 @@ async def read_item(company_1: str, company_2: str):
 
 @app.get("/share_cell/")
 async def read_item(company_1: str, company_2: str):
-    bc_id_graph = ai.AzureBlob(
-        url=accessible_resources_dict["storage_containers"]["meta-id-table"]
-    )
-    df_id_graph = bc_id_graph.read_latest_blob_to_df(sep=";")
+    # bc_id_graph = ai.AzureBlob(
+    #    url=accessible_resources_dict["storage_containers"]["meta-id-table"]
+    # )
+    # df_id_graph = bc_id_graph.read_latest_blob_to_df(sep=";")
 
     if company_1 not in df_id_graph.columns:
         raise HTTPException(
