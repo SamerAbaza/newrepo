@@ -8,7 +8,6 @@ on:
 
 env:
   REGISTRY: ${{ secrets.CONTAINER_REGISTRY }}
-  IMAGE_FOLDER: id_graph_api
   REPOSITORY: id-graph-api
 
 jobs:
@@ -33,11 +32,10 @@ jobs:
       - name: Test with pytest
         run: |
           pytest --cov-report term-missing --cov=src -vv
-        working-directory: ${{ env.IMAGE_FOLDER }}
 
   build:
     name: Build
-    runs-on: ["self-hosted"]
+    runs-on: self-hosted
     needs: test
     env:
       DOCKER_BUILDKIT: 1
@@ -58,10 +56,10 @@ jobs:
           IMAGE_TAG="${GITHUB_SHA:0:8}"
 
           # Build and push
-          docker build $(./ci_helpers/get_docker_build_args.sh ${IMAGE_FOLDER}) -f ${DOCKERFILE:="./Dockerfile"} -t ${IMAGE_NAME}:${IMAGE_TAG} .
+          docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
           docker push ${IMAGE_NAME}:${IMAGE_TAG}
 
-          # Push with alternative tag if present
+          # Push with alternative tag
           docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:${ALTERNATIVE_TAG}
           docker push ${IMAGE_NAME}:${ALTERNATIVE_TAG}
 
