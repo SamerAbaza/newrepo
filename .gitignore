@@ -4,11 +4,8 @@
 # Python
 *.pyc
 __init__.py
-.env
+
 src/test_nothing.py
 ../tests/.hypothesis/*
 **/__pycache__/
 **/.hypothesis/
-tests/__init__.py
-venv-be-id-id-graph
-tests/.hypothesis
