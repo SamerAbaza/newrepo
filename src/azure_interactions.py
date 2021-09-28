@@ -1,28 +1,20 @@
-from functools import cached_property
-import typing as t
-from io import StringIO
-
 import os
+import typing as t
+from functools import cached_property
+from io import BytesIO, StringIO
 
-
+import pandas as pd
 from azure.core.paging import ItemPaged
 from azure.identity import DefaultAzureCredential
-
-
 from azure.storage.blob import (
-    BlobServiceClient,
     BlobClient,
+    BlobProperties,
+    BlobServiceClient,
+    BlobType,
     ContainerClient,
     StorageStreamDownloader,
-    BlobProperties,
 )
-
-try:
-    import pandas as pd
-    from pandas import DataFrame
-except ImportError:
-    pd = None
-    DataFrame = None
+from pandas import DataFrame
 
 __DEFAULT_CREDENTIALS__ = DefaultAzureCredential(
     exclude_visual_studio_code_credential=True,
@@ -90,3 +82,30 @@ class AzureBlob:
         downloaded_stream = StringIO(str(download_blob.readall().decode("utf-8")))
         return_df = pd.read_csv(downloaded_stream, sep=sep, dtype="str", **kwargs)
         return return_df
+
+    def write_blob(
+        self,
+        blob_name: str,
+        blob_data: t.Union[t.Iterable[t.AnyStr], t.IO[t.AnyStr]],
+        blob_type: BlobType = BlobType.BlockBlob,
+    ):
+        blob_client = BlobClient.from_blob_url(
+            blob_url=self._get_blob_url(blob_name), credential=self.credential
+        )
+        if blob_type == BlobType.BlockBlob:
+            overwrite = True
+        elif blob_type == BlobType.AppendBlob:
+            overwrite = False
+        else:
+            raise RuntimeError(f"Blob Type '{blob_type}' is not supported")
+
+        blob_client.upload_blob(
+            data=blob_data, blob_type=blob_type, overwrite=overwrite
+        )
+
+    def write_df_to_blob(self, blob_name: str, df: DataFrame, **kwargs):
+        with BytesIO() as bio:
+            df.to_csv(bio, **kwargs)
+            bio.seek(0)
+            self.write_blob(blob_name=blob_name, blob_data=bio)
+

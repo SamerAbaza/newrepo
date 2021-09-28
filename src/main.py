@@ -1,85 +1,104 @@
-from fastapi import FastAPI, HTTPException
-
-# import azure_interactions as ai
-from test_data import df_id_graph
-import os
 import json
+import os
 import uuid
+from datetime import datetime
+from typing import List
+
+from azure.identity import DefaultAzureCredential
+from azure.storage.blob import BlobClient
+from fastapi import FastAPI, HTTPException
+from pandas import DataFrame
+
+import azure_interactions as ai
+from generate_share_mapping import generate_share_mapping_person, generate_share_mapping_cell
+from test_data import df_id_graph
+
+
+ACCESSIBLE_RESOURCES: dict = json.loads(os.environ["ACCESSIBLE_RESOURCES"])
+_CREDENTIALS = None
+
+
+_CREDENTIALS = None
+
 
 app = FastAPI()
 
-# accessible_resources = os.environ["ACCESSIBLE_RESOURCES"]
-# accessible_resources_dict = json.loads(accessible_resources)
+
+def azure_credentials():
+    global _CREDENTIALS
+    if _CREDENTIALS is None:
+        _CREDENTIALS = DefaultAzureCredential()
+    return _CREDENTIALS
+
+
+def validate_companies(columns: List[str], company_1: str, company_2: str):
+    if company_1 not in columns:
+        raise HTTPException(
+            status_code=404, detail=f"Could not find company '{company_1}' in ID-Graph"
+        )
+    if company_2 not in columns:
+        raise HTTPException(
+            status_code=404, detail=f"Could not find company '{company_2}' in ID-Graph"
+        )
+    if company_1 == company_2:
+        raise HTTPException(status_code=404, detail=f"Got two times the same company")
+
+
+def generate_blob_name(company_1: str, company_2: str) -> str:
+    return f"share-ids/{datetime.utcnow().strftime('%Y-%m-%d')}/{uuid.uuid4()}-{company_1}-{company_2}.csv"
+
+
+def get_blob_client(company: str, blob_name: str) -> BlobClient:
+    company_datalakes = ACCESSIBLE_RESOURCES["storage_containers"]["company-datalakes"]
+    assert company in company_datalakes, f"Did not find DataLake associated to company '{company}'"
+
+    url = os.path.join(company_datalakes[company], blob_name)
+    print("Ahmed" + url)
+    return BlobClient.from_blob_url(blob_url=url, credential=azure_credentials())
+
+
+def write_mapping_to_company_data_lake(blob_client: BlobClient, mapping: DataFrame) -> None:
+    blob_client.upload_blob(data=mapping.to_csv(sep=";", index=False))
 
 
 @app.get("/share_person/")
 async def read_item(company_1: str, company_2: str):
-    # bc_id_graph = ai.AzureBlob(
-    #    url=accessible_resources_dict["storage_containers"]["meta-id-table"]
-    # )
-    # df_id_graph = bc_id_graph.read_latest_blob_to_df(sep=";")
+    bc_id_graph = ai.AzureBlob(
+       url=ACCESSIBLE_RESOURCES["storage_containers"]["meta-id-table"]
+    )
+    df_id_graph = bc_id_graph.read_latest_blob_to_df()
+    validate_companies(df_id_graph.columns, company_1, company_2)
 
-    if company_1 not in df_id_graph.columns:
-        raise HTTPException(
-            status_code=404, detail=f"Could not finde company '{company_1}' in ID-Graph"
-        )
-    if company_2 not in df_id_graph.columns:
-        raise HTTPException(
-            status_code=404, detail=f"Could not finde company '{company_2}' in ID-Graph"
-        )
-    if company_1 == company_2:
-        raise HTTPException(status_code=404, detail=f"Got 2 times the same company")
+    mapping_df = generate_share_mapping_person(
+        df_id_graph=df_id_graph, company_1=company_1, company_2=company_2
+    )
 
-    df_preprocessed = df_id_graph[[company_1, company_2]].dropna(thresh=2)
-    df_preprocessed["random_id"] = df_preprocessed.apply(lambda _: uuid.uuid4(), axis=1)
-    df_preprocessed.reset_index(drop=True, inplace=True)
+    blob_name = generate_blob_name(company_1, company_2)
+    return_dict = {}
+    for company, mapping in mapping_df.items():
+        target_blob = get_blob_client(company, blob_name)
+        write_mapping_to_company_data_lake(blob_client=target_blob, mapping=mapping)
+        return_dict[company] = target_blob.url
 
-    dict_return_1 = df_preprocessed[[company_1, "random_id"]].to_dict()
-    dict_return_2 = df_preprocessed[[company_2, "random_id"]].to_dict()
-    return {
-        company_1: dict_return_1,
-        company_2: dict_return_2,
-    }
-
+    return return_dict
 
 @app.get("/share_cell/")
 async def read_item(company_1: str, company_2: str):
-    # bc_id_graph = ai.AzureBlob(
-    #    url=accessible_resources_dict["storage_containers"]["meta-id-table"]
-    # )
-    # df_id_graph = bc_id_graph.read_latest_blob_to_df(sep=";")
+    bc_id_graph = ai.AzureBlob(
+       url=ACCESSIBLE_RESOURCES["storage_containers"]["meta-id-table"]
+    )
+    df_id_graph = bc_id_graph.read_latest_blob_to_df()
 
-    if company_1 not in df_id_graph.columns:
-        raise HTTPException(
-            status_code=404, detail=f"Could not finde company '{company_1}' in ID-Graph"
-        )
-    if company_2 not in df_id_graph.columns:
-        raise HTTPException(
-            status_code=404, detail=f"Could not finde company '{company_2}' in ID-Graph"
-        )
-    if company_1 == company_2:
-        raise HTTPException(status_code=404, detail=f"Got 2 times the same company")
+    validate_companies(df_id_graph.columns, company_1, company_2)
+    mapping_df = generate_share_mapping_cell(
+        df_id_graph=df_id_graph, company_1=company_1, company_2=company_2
+    )
+    blob_name = generate_blob_name(company_1, company_2)
+    return_dict = {}
+    for company, mapping in mapping_df.items():
+        target_blob = get_blob_client(company, blob_name)
+        write_mapping_to_company_data_lake(blob_client=target_blob, mapping=mapping)
+        return_dict[company] = target_blob.url
 
-    # use only rows where all information is givenn
-    df_preprocessed = df_id_graph[[company_1, company_2, "cell_id"]].dropna(thresh=3)
+    return return_dict
 
-    # create mapping dict to replace actual cell id by random id
-    list_cell_ids = df_preprocessed["cell_id"].unique()
-    list_cell_ids = [x for x in list_cell_ids if x]
-
-    list_uuid = []
-    for i in range(0, len(list_cell_ids)):
-        list_uuid.append(uuid.uuid4())
-
-    dict_cell_ids = dict(zip(list_cell_ids, list_uuid))
-
-    df_return_1 = df_preprocessed[[company_1, "cell_id"]]
-    df_return_2 = df_preprocessed[[company_2, "cell_id"]]
-
-    dict_return_1 = df_return_1.replace({"cell_id": dict_cell_ids}).to_dict()
-    dict_return_2 = df_return_2.replace({"cell_id": dict_cell_ids}).to_dict()
-
-    return {
-        company_1: dict_return_1,
-        company_2: dict_return_2,
-    }
