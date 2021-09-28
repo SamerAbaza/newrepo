@@ -3,7 +3,7 @@
 
 # Python
 *.pyc
-__init__.py
+*__init__.py
 
 src/test_nothing.py
 ../tests/.hypothesis/*
